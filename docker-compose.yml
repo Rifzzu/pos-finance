@@ -1,0 +1,183 @@
+services:
+  mysql-auth:
+    image: mysql:8
+    command: --default-time-zone=+07:00 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: db_auth
+    ports:
+      - "33061:3306"
+    volumes:
+      - mysql-auth-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mysql-pos:
+    image: mysql:8
+    command: --default-time-zone=+07:00 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: db_pos
+    ports:
+      - "33062:3306"
+    volumes:
+      - mysql-pos-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mysql-finance:
+    image: mysql:8
+    command: --default-time-zone=+07:00 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: db_finance
+    ports:
+      - "33063:3306"
+    volumes:
+      - mysql-finance-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  auth:
+    build: ./services/auth
+    ports:
+      - "8001:8001"
+    depends_on:
+      mysql-auth:
+        condition: service_healthy
+    environment:
+      APP_KEY: ${APP_KEY:-base64:vZX95kJOQo9nlrYvtch2+k0Pw1kW3wlV6rV8vc776nA=}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Jakarta}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql-auth
+      DB_PORT: 3306
+      DB_DATABASE: db_auth
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      DB_TIMEZONE: "+07:00"
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key-change-me}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me-min-32-chars}
+      JWT_TTL: ${JWT_TTL:-15}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-10080}
+      JWT_BLACKLIST_ENABLED: ${JWT_BLACKLIST_ENABLED:-false}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-Password123!}
+      TAX_RATE: ${TAX_RATE:-0.11}
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT:-3}
+      AUTH_SERVICE_URL: http://auth:8001
+      POS_SERVICE_URL: http://pos:8002
+      FINANCE_SERVICE_URL: http://finance:8003
+      PORT: 8001
+      RUN_SEEDERS: ${RUN_SEEDERS:-true}
+
+  pos:
+    build: ./services/pos
+    ports:
+      - "8002:8002"
+    depends_on:
+      mysql-pos:
+        condition: service_healthy
+    environment:
+      APP_KEY: ${APP_KEY:-base64:vZX95kJOQo9nlrYvtch2+k0Pw1kW3wlV6rV8vc776nA=}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Jakarta}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql-pos
+      DB_PORT: 3306
+      DB_DATABASE: db_pos
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      DB_TIMEZONE: "+07:00"
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key-change-me}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me-min-32-chars}
+      JWT_TTL: ${JWT_TTL:-15}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-10080}
+      JWT_BLACKLIST_ENABLED: ${JWT_BLACKLIST_ENABLED:-false}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-Password123!}
+      TAX_RATE: ${TAX_RATE:-0.11}
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT:-3}
+      AUTH_SERVICE_URL: http://auth:8001
+      POS_SERVICE_URL: http://pos:8002
+      FINANCE_SERVICE_URL: http://finance:8003
+      REDIS_CLIENT: predis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PORT: 8002
+      RUN_SEEDERS: ${RUN_SEEDERS:-true}
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    volumes:
+      - redis-data:/data
+
+  finance:
+    build: ./services/finance
+    ports:
+      - "8003:8003"
+    depends_on:
+      mysql-finance:
+        condition: service_healthy
+    environment:
+      APP_KEY: ${APP_KEY:-base64:vZX95kJOQo9nlrYvtch2+k0Pw1kW3wlV6rV8vc776nA=}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Jakarta}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql-finance
+      DB_PORT: 3306
+      DB_DATABASE: db_finance
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      DB_TIMEZONE: "+07:00"
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key-change-me}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-me-min-32-chars}
+      JWT_TTL: ${JWT_TTL:-15}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-10080}
+      JWT_BLACKLIST_ENABLED: ${JWT_BLACKLIST_ENABLED:-false}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-Password123!}
+      TAX_RATE: ${TAX_RATE:-0.11}
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT:-3}
+      AUTH_SERVICE_URL: http://auth:8001
+      POS_SERVICE_URL: http://pos:8002
+      FINANCE_SERVICE_URL: http://finance:8003
+      PORT: 8003
+      RUN_SEEDERS: ${RUN_SEEDERS:-true}
+
+  frontend:
+    build: ./frontend
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  gateway:
+    build: ./gateway
+    ports:
+      - "8080:80"
+    depends_on:
+      auth:
+        condition: service_started
+      pos:
+        condition: service_started
+      finance:
+        condition: service_started
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql-auth-data:
+  mysql-pos-data:
+  mysql-finance-data:
+  redis-data:
